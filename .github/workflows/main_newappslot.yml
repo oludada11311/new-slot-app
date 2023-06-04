@@ -59,4 +59,4 @@ jobs:
         id: deploy-to-webapp
         with:
           app-name: 'newAppSlot'
-          publish-profile: ${{ secrets.AZUREAPPSERVICE_PUBLISHPROFILE_3E8C0FC48DBF46E89A435D680E8D08FD }}
+          publish-profile: ${{ secrets.AZUREAPPSERVICE_PUBLISHPROFILE }}
