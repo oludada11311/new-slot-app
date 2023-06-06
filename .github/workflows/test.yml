@@ -2,7 +2,7 @@ name: hello-world application POC
 on:
   push:
     branches:
-      - main
+#      - main
 env:
 RESOURCE_GROUP: replace-with-your-rg-name
 WEBAPP_NAME: hello-world
@@ -30,6 +30,7 @@ jobs:
         uses: actions/setup-java@v3
         with:
           dotnet-version: ${{ env.DOTNET_VERSION }}
+
       - name: Set up dependency caching for net
         uses: actions/cache@v2
         with:
@@ -52,3 +53,45 @@ jobs:
         with:
           name: hello-world-function-artifact
           path: /home/runner/work/hello-world/hello-world/hello-world.Function
+  deploy-to-stage:
+    name: Deploy to staging
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: "Staging"
+      url: ${{ steps.deploy-to-stage.outputs.webapp-url }}
+    steps:
+      - name: Log into Azure CLI with service principal
+        uses: azure/login@v1.1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Download infrastructure artifacts for function
+        uses: actions/download-artifact@v2
+        with:
+          name: hello-world-function_artifact
+          path: ${{ env. RUNNER_DIR }}hello-world/hello-world/hello-world.Function
+
+      - name: Deploy to stage env
+        uses: azure/webapps-deploy@v1
+        id: deploy-to-stage
+        with:
+          app-name: ${{ env.WEBAPP_NAME }}
+          slot-name: ${{ env.SLOT_NAME }}
+          package: "*.war"
+  release-to-prod:
+    name: Release to prod
+    needs: deploy-to-stage
+    runs-on: ubuntu-latest
+    environment:
+      name: "Production"
+      url: "https://${{ env.WEBAPP_NAME }}.azurewebsites.net/"
+    steps:
+      - name: Log into Azure CLI with service principal
+        uses: azure/login@v1.1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Swap slots
+        id: main-swap
+        run: az webapp deployment slot swap -s ${{ env.SLOT_NAME }} -n ${{ env.WEBAPP_NAME }} -g ${{ env.RESOURCE_GROUP }}
